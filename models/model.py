@@ -13,6 +13,7 @@ class DenseConnectBiLSTM(object):
         self._add_embedding_lookup()
         self._build_model()
         self._add_loss_op()
+        self._add_accuracy_op()
         self._add_train_op()
         self.sess, self.saver = None, None
         self.initialize_session()
@@ -132,6 +133,9 @@ class DenseConnectBiLSTM(object):
         else:
             self.loss = tf.reduce_mean(loss)
 
+    def _add_accuracy_op(self):
+        pass
+
     def _add_train_op(self):
         with tf.variable_scope('train_step'):
             optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
@@ -142,8 +146,11 @@ class DenseConnectBiLSTM(object):
             else:
                 self.train_op = optimizer.minimize(self.loss)
 
-    def train(self, trainset, devset, batch_size=64, epochs=50):
+    def train(self, trainset, devset, testset, batch_size=64, epochs=50):
         self.logger.info('Start training...')
+        init_lr = self.cfg.lr
+        best_score = 0.0
+        no_imprv_epoch = 0
         for epoch in range(1, epochs + 1):
             self.logger.info('Epoch %2d/%2d:' % (epoch, epochs))
             progbar = Progbar(target=(len(trainset) + batch_size - 1) // batch_size)  # number of batches
@@ -151,7 +158,23 @@ class DenseConnectBiLSTM(object):
                 feed_dict = self._get_feed_dict(words, labels, lr=self.cfg.lr, is_train=True)
                 _, train_loss = self.sess.run([self.train_op, self.loss], feed_dict=feed_dict)
                 progbar.update(i + 1, [("train loss", train_loss)])
-            # TODO -- evaluate on devset
+            dev_score = self.evaluate(devset, batch_size)
+            # learning rate decay
+            self.cfg.lr = init_lr / (1 + self.cfg.lr_decay * epoch)
+            if dev_score > best_score:
+                no_imprv_epoch = 0
+                self.save_session(epoch)
+                best_score = dev_score
+                self.logger.info(' -- new BEST score on DEVELOPMENT dataset: {:04.2f}'.format(best_score))
+                self.evaluate(testset, batch_size)
+            else:
+                no_imprv_epoch += 1
+                if no_imprv_epoch >= self.cfg.no_imprv_patience:
+                    self.logger.info('early stop at {}th epoch without improvement for {} epochs, BEST score: {:04.2f}'
+                                     .format(epoch, no_imprv_epoch, best_score))
+                    self.save_session(epoch)  # save the last one
+                    break
+        self.logger.info('Training process done...')
 
-    def evaluate(self, dataset):
-        pass  # TODO
+    def evaluate(self, dataset, batch_size):
+        return 0.0  # TODO

@@ -1,17 +1,28 @@
 from utils import load_json
-from dataset.prepro import load_vocab
+from models import Config, DenseConnectBiLSTM
 import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tensorflow warnings
 
 
 def main():
     data_folder = os.path.join('.', 'dataset', 'data')
     # set tasks
-    source_dir = os.path.join(data_folder, 'sst1')
+    task = 'sst1'
+    source_dir = os.path.join(data_folder, task)
+    # create config
+    config = Config(source_dir)
     # load datasets
     trainset = load_json(os.path.join(source_dir, 'train.json'))
     devset = load_json(os.path.join(source_dir, 'dev.json'))
     testset = load_json(os.path.join(source_dir, 'test.json'))
-    # load vocabularies
-    word_idx, idx_word = load_vocab(os.path.join(source_dir, 'words.vocab'))
-    char_idx, idx_chat = load_vocab(os.path.join(source_dir, 'chars.vocab'))
-    # TODO
+    # build model
+    model = DenseConnectBiLSTM(config)
+    # training
+    batch_size = 64
+    epochs = 30
+    model.train(trainset, devset, testset, batch_size=batch_size, epochs=epochs)
+
+
+if __name__ == '__main__':
+    main()

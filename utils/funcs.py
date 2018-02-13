@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 
 def load_json(filename):
@@ -8,6 +9,14 @@ def load_json(filename):
             return data
     except IOError:
         raise "ERROR: Unable to locate file {}".format(filename)
+
+
+def load_embeddings(filename):
+    try:
+        with np.load(filename) as data:
+            return data['embeddings']
+    except IOError:
+        raise 'ERROR: Unable to locate file {}.'.format(filename)
 
 
 def batch_iter(dataset, batch_size):
