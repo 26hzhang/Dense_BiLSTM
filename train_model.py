@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tensorflow warnings
 def main():
     data_folder = os.path.join('.', 'dataset', 'data')
     # set tasks
-    task = 'sst1'
+    task = 'sst2'
     source_dir = os.path.join(data_folder, task)
     # create config
     config = Config(source_dir)
@@ -19,7 +19,7 @@ def main():
     # build model
     model = DenseConnectBiLSTM(config)
     # training
-    batch_size = 64
+    batch_size = 32
     epochs = 30
     model.train(trainset, devset, testset, batch_size=batch_size, epochs=epochs)
 

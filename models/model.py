@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+import numpy as np
 from utils import get_logger, Progbar, batch_iter, pad_sequences
 from models import multi_conv1d, highway_network, dropout, BiRNN, dense
 
@@ -85,10 +86,10 @@ class DenseConnectBiLSTM(object):
                 _char_emb = tf.get_variable(name='_char_emb', dtype=tf.float32, trainable=True,
                                             shape=[self.cfg.char_vocab_size, self.cfg.char_dim])
                 char_emb = tf.nn.embedding_lookup(_char_emb, self.char_ids, name='char_emb')
-                char_emb_shape = char_emb.get_shape().as_list()
+                char_emb_shape = tf.shape(char_emb)
                 char_rep = multi_conv1d(char_emb, self.cfg.filter_sizes, self.cfg.heights, "VALID",  self.is_train,
                                         self.cfg.keep_prob, scope="char_cnn")
-                char_rep = tf.reshape(char_rep, [char_emb_shape[0], char_emb_shape[1], self.cfg.char_out_size])
+                char_rep = tf.reshape(char_rep, [char_emb_shape[0], char_emb_shape[1], self.cfg.char_rep_dim])
                 word_emb = tf.concat([word_emb, char_rep], axis=-1)  # concat word emb and corresponding char rep
         if self.cfg.use_highway:
             self.word_emb = highway_network(word_emb, self.cfg.highway_num_layers, bias=True, is_train=self.is_train,
@@ -134,7 +135,9 @@ class DenseConnectBiLSTM(object):
             self.loss = tf.reduce_mean(loss)
 
     def _add_accuracy_op(self):
-        pass
+        self.predicts = tf.argmax(self.logits, axis=-1)
+        self.actuals = tf.argmax(self.labels, axis=-1)
+        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(self.predicts, self.actuals), dtype=tf.float32))
 
     def _add_train_op(self):
         with tf.variable_scope('train_step'):
@@ -165,16 +168,27 @@ class DenseConnectBiLSTM(object):
                 no_imprv_epoch = 0
                 self.save_session(epoch)
                 best_score = dev_score
-                self.logger.info(' -- new BEST score on DEVELOPMENT dataset: {:04.2f}'.format(best_score))
-                self.evaluate(testset, batch_size)
+                self.logger.info(' -- new BEST score on DEVELOPMENT dataset: {:05.3f}'.format(best_score))
+                self.evaluate(testset, batch_size, is_devset=False)
             else:
                 no_imprv_epoch += 1
                 if no_imprv_epoch >= self.cfg.no_imprv_patience:
-                    self.logger.info('early stop at {}th epoch without improvement for {} epochs, BEST score: {:04.2f}'
+                    self.logger.info('early stop at {}th epoch without improvement for {} epochs, BEST score: {:05.3f}'
                                      .format(epoch, no_imprv_epoch, best_score))
                     self.save_session(epoch)  # save the last one
                     break
         self.logger.info('Training process done...')
 
-    def evaluate(self, dataset, batch_size):
-        return 0.0  # TODO
+    def evaluate(self, dataset, batch_size, is_devset=True):
+        if is_devset:
+            self.logger.info("Testing model over DEVELOPMENT dataset")
+        else:
+            self.logger.info('Testing model over TEST dataset')
+        accuracies = []
+        for words, labels in batch_iter(dataset, batch_size):
+            feed_dict = self._get_feed_dict(words, labels, lr=None, is_train=False)
+            accuracy = self.sess.run(self.accuracy, feed_dict=feed_dict)
+            accuracies.append(accuracy)
+        acc = np.mean(accuracies) * 100
+        self.logger.info('accuracy: {:05.3f}'.format(acc))
+        return acc

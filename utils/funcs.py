@@ -25,10 +25,9 @@ def batch_iter(dataset, batch_size):
         if len(batch_x) == batch_size:
             yield batch_x, batch_y
             batch_x, batch_y = [], []
-        x = record["sentence"]
+        x = [tuple(value) for value in record["sentence"]]
+        x = zip(*x)
         y = record["label"]
-        if type(x[0]) == tuple:
-            x = zip(*x)
         batch_x += [x]
         batch_y += [y]
     if len(batch_x) != 0:

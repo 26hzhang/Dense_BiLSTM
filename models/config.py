@@ -7,8 +7,8 @@ class Config(object):
     def __init__(self, source_dir):
         if not os.path.exists(self.ckpt_path):
             os.makedirs(self.ckpt_path)
-        self.word_vocab = load_vocab(os.path.join(source_dir, 'words.vocab'))
-        self.char_vocab = load_vocab(os.path.join(source_dir, 'chars.vocab'))
+        self.word_vocab, _ = load_vocab(os.path.join(source_dir, 'words.vocab'))
+        self.char_vocab, _ = load_vocab(os.path.join(source_dir, 'chars.vocab'))
         self.vocab_size = len(self.word_vocab)
         self.char_vocab_size = len(self.char_vocab)
         self.label_size = load_json(os.path.join(source_dir, 'label.json'))["label_size"]
@@ -25,7 +25,7 @@ class Config(object):
     word_dim = 300
 
     # char embeddings
-    use_char_emb = False
+    use_char_emb = True
     char_dim = 100
     char_rep_dim = 100
     # CNN filter size and height for char representation
@@ -33,7 +33,7 @@ class Config(object):
     heights = [5, 5]
 
     # highway network
-    use_highway = False
+    use_highway = True
     highway_num_layers = 2
 
     # model parameters
@@ -44,6 +44,6 @@ class Config(object):
     # hyperparameters
     l2_reg = 0.0
     grad_clip = 5.0
-    lr = 0.005
+    lr = 0.01
     lr_decay = 0.05
-    keep_prob = 0.5
+    keep_prob = 0.75

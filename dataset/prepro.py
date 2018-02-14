@@ -143,7 +143,7 @@ def fit_word_to_id(word, word_vocab, char_vocab):
     for char in word:
         char_ids += [char_vocab[char]] if char in char_vocab else [char_vocab[UNK]]
     word = word_vocab[word] if word in word_vocab else word_vocab[UNK]
-    return tuple([word, char_ids])
+    return word, char_ids
 
 
 def build_dataset(raw_dataset, filename, word_vocab, char_vocab, num_labels, one_hot=True):
