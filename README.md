@@ -24,7 +24,7 @@ MPQA | 2 | 3 | 10606 | 6246 | 6083 | CV
 
 ### Usage
 **Configuration**: all parameters and configurations are maintained in [models/config.py](/models/config.py).  
-The first step is to prepare the required data (pre-trained word embeddings and raw datasets). The raw datasets are already included in this repository, which are located at `dataset/raw/`, word embeddings used in the paper, the _300-dimensional Glove vectors that were trained on 42 billion words_, can be obtained by
+The first step is to prepare the required data (pre-trained word embeddings and raw datasets). The raw datasets are already included in this repository, which are located at `dataset/raw/`, word embeddings used in the paper, the _300-dimensional [Glove vectors](https://nlp.stanford.edu/projects/glove/) that were trained on 42 billion words_, can be obtained by
 ```bash
 $ cd dataset
 $ ./download_emb.sh
@@ -36,9 +36,9 @@ $ python3 prepro.py
 ```
 Then training model on a specific dataset via
 ```bash
-$ python3 train_model.py <dataset_folder_name>
+$ python3 train_model.py <dataset_folder_name> <resume_training>
 # eg:
-$ python3 train_model.py subj
+$ python3 train_model.py subj True
 ```
 If everything goes properly, then training process will be launched
 ```bash
