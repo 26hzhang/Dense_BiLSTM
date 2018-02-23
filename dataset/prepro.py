@@ -180,6 +180,9 @@ def prepro_general(train_set, dev_set, test_set, num_labels, data_folder, glove_
                   one_hot=True)
     build_dataset(test_set, os.path.join(data_folder, 'test.json'), word_vocab, char_vocab, num_labels=num_labels,
                   one_hot=True)
+    # save number of labels information into json
+    with open(os.path.join(data_folder, 'label.json'), 'w') as f:
+        json.dump({"label_size": num_labels}, f)
 
 
 def prepro_sst(glove_path, glove_vocab=None, mode=1):
@@ -241,7 +244,7 @@ def main():
     prepro_other('mpqa', 'mpqa.all', glove_path, glove_vocab)
     # process cr dataset
     prepro_other('cr', 'custrev.all', glove_path, glove_vocab)
-    print('Preprocessing all the datasets finished... data is located at {}'.format(target_dir))
+    print('Pre-processing all the datasets finished... data is located at {}'.format(target_dir))
 
 
 if __name__ == '__main__':

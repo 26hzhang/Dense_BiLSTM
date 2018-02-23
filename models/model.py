@@ -4,11 +4,12 @@ import numpy as np
 from utils import get_logger, Progbar, batch_iter, pad_sequences
 from models import multi_conv1d, highway_network, dropout, BiRNN, dense
 
+np.random.seed(12345)
+
 
 class DenseConnectBiLSTM(object):
-    def __init__(self, config, model_name='dense_bi_lstm'):
-        self.cfg = config
-        self.model_name = model_name
+    def __init__(self, config, resume_training=True, model_name='dense_bi_lstm'):
+        self.cfg, self.model_name, self.resume_training, self.start_epoch = config, model_name, resume_training, 1
         self.logger = get_logger(os.path.join(self.cfg.ckpt_path, 'log.txt'))
         self._add_placeholder()
         self._add_embedding_lookup()
@@ -17,12 +18,28 @@ class DenseConnectBiLSTM(object):
         self._add_accuracy_op()
         self._add_train_op()
         self.sess, self.saver = None, None
+        print('number of parameters: {}'.format(np.sum([np.prod(v.get_shape().as_list())
+                                                        for v in tf.trainable_variables()])))
         self.initialize_session()
 
     def initialize_session(self):
         self.sess = tf.Session()
         self.saver = tf.train.Saver(max_to_keep=self.cfg.max_to_keep)
         self.sess.run(tf.global_variables_initializer())
+        if self.resume_training:
+            checkpoint = tf.train.get_checkpoint_state(self.cfg.ckpt_path)
+            if not checkpoint:
+                r = input("No checkpoint found in directory %s, cannot resume training. Do you want to start a new "
+                          "training session?\n(y)es | (n)o: " % self.cfg.ckpt_path)
+                if r.startswith('y'):
+                    return
+                else:
+                    exit(0)
+            print('Resume training from %s...' % self.cfg.ckpt_path)
+            ckpt_path = checkpoint.model_checkpoint_path
+            self.start_epoch = int(ckpt_path.split('-')[-1]) + 1
+            print('Start Epoch: ', self.start_epoch)
+            self.saver.restore(self.sess, ckpt_path)
 
     def restore_last_session(self, ckpt_path=None):
         if ckpt_path is not None:
@@ -45,7 +62,7 @@ class DenseConnectBiLSTM(object):
         self.word_ids = tf.placeholder(tf.int32, shape=[None, None], name='word_ids')
         # shape = (batch_size)
         self.seq_len = tf.placeholder(tf.int32, shape=[None], name='seq_len')
-        # shape = (batch_size, max_time(max_sentence_length), max_word_length)
+        # shape = (batch_size, max_sentence_length, max_word_length)
         self.char_ids = tf.placeholder(tf.int32, shape=[None, None, None], name='char_ids')
         # shape = (batch_size, max_sentence_length)
         self.word_len = tf.placeholder(tf.int32, shape=[None, None], name='word_len')
@@ -96,6 +113,7 @@ class DenseConnectBiLSTM(object):
                                             keep_prob=self.cfg.keep_prob)
         else:
             self.word_emb = dropout(word_emb, keep_prob=self.cfg.keep_prob, is_train=self.is_train)
+        print('word embedding shape: {}'.format(self.word_emb.get_shape().as_list()))
 
     def _build_model(self):
         with tf.variable_scope('dense_connect_bi_lstm'):
@@ -115,22 +133,25 @@ class DenseConnectBiLSTM(object):
                 else:
                     cur_inputs = cur_rnn_outputs
             dense_bi_lstm_outputs = cur_inputs
+            print('dense bi-lstm outputs shape: {}'.format(dense_bi_lstm_outputs.get_shape().as_list()))
 
         with tf.variable_scope('average_pooling'):
             # according to the paper (https://arxiv.org/pdf/1802.00889.pdf) description in P4, simply compute average ?
             avg_outputs = tf.reduce_mean(dense_bi_lstm_outputs, axis=1)
             avg_outputs = dropout(avg_outputs, keep_prob=self.cfg.keep_prob, is_train=self.is_train)
+            print('average pooling outputs shape: {}'.format(avg_outputs.get_shape().as_list()))
 
         with tf.variable_scope('output_project'):
             self.logits = dense(avg_outputs, self.cfg.label_size, use_bias=True, scope='dense')
+            print('logits shape: {}'.format(self.logits.get_shape().as_list()))
 
     def _add_loss_op(self):
         loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
         if self.cfg.l2_reg is not None and self.cfg.l2_reg > 0.0:
             # l2 constraints over softmax parameters (i.e., output_project parameters) ?
             train_vars = tf.trainable_variables(scope='output_project')
-            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in train_vars if 'bias' not in v.name]) * self.cfg.l2_reg
-            self.loss = tf.reduce_mean(loss + l2_loss)
+            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in train_vars if 'bias' not in v.name])
+            self.loss = tf.reduce_mean(loss + self.cfg.l2_reg * l2_loss)
         else:
             self.loss = tf.reduce_mean(loss)
 
@@ -149,46 +170,49 @@ class DenseConnectBiLSTM(object):
             else:
                 self.train_op = optimizer.minimize(self.loss)
 
-    def train(self, trainset, devset, testset, batch_size=64, epochs=50):
+    def train(self, trainset, devset, testset, batch_size=64, epochs=50, shuffle=True):
         self.logger.info('Start training...')
         init_lr = self.cfg.lr
         best_score = 0.0
+        best_score_epoch = 1
         no_imprv_epoch = 0
-        for epoch in range(1, epochs + 1):
+        for epoch in range(self.start_epoch, epochs + 1):
             self.logger.info('Epoch %2d/%2d:' % (epoch, epochs))
             progbar = Progbar(target=(len(trainset) + batch_size - 1) // batch_size)  # number of batches
+            if shuffle:
+                np.random.shuffle(trainset)  # shuffle training dataset each epoch
+            # training each epoch
             for i, (words, labels) in enumerate(batch_iter(trainset, batch_size)):
                 feed_dict = self._get_feed_dict(words, labels, lr=self.cfg.lr, is_train=True)
                 _, train_loss = self.sess.run([self.train_op, self.loss], feed_dict=feed_dict)
                 progbar.update(i + 1, [("train loss", train_loss)])
             dev_score = self.evaluate(devset, batch_size)
             # learning rate decay
-            self.cfg.lr = init_lr / (1 + self.cfg.lr_decay * epoch)
+            if self.cfg.decay_lr:
+                self.cfg.lr = init_lr / (1 + self.cfg.lr_decay * epoch)
+            # performs model saving and evaluating on test dataset
             if dev_score > best_score:
                 no_imprv_epoch = 0
                 self.save_session(epoch)
                 best_score = dev_score
+                best_score_epoch = epoch
                 self.logger.info(' -- new BEST score on DEVELOPMENT dataset: {:05.3f}'.format(best_score))
                 self.evaluate(testset, batch_size, is_devset=False)
             else:
                 no_imprv_epoch += 1
                 if no_imprv_epoch >= self.cfg.no_imprv_patience:
-                    self.logger.info('early stop at {}th epoch without improvement for {} epochs, BEST score: {:05.3f}'
-                                     .format(epoch, no_imprv_epoch, best_score))
-                    self.save_session(epoch)  # save the last one
+                    self.logger.info('early stop at {}th epoch without improvement for {} epochs, BEST score: '
+                                     '{:05.3f} at epoch {}'.format(epoch, no_imprv_epoch, best_score, best_score_epoch))
                     break
         self.logger.info('Training process done...')
 
     def evaluate(self, dataset, batch_size, is_devset=True):
-        if is_devset:
-            self.logger.info("Testing model over DEVELOPMENT dataset")
-        else:
-            self.logger.info('Testing model over TEST dataset')
         accuracies = []
         for words, labels in batch_iter(dataset, batch_size):
             feed_dict = self._get_feed_dict(words, labels, lr=None, is_train=False)
             accuracy = self.sess.run(self.accuracy, feed_dict=feed_dict)
             accuracies.append(accuracy)
         acc = np.mean(accuracies) * 100
-        self.logger.info('accuracy: {:05.3f}'.format(acc))
+        self.logger.info("Testing model over {} dataset: accuracy - {:05.3f}".format('DEVELOPMENT' if is_devset else
+                                                                                     'TEST', acc))
         return acc
