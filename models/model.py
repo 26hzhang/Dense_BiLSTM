@@ -18,8 +18,7 @@ class DenseConnectBiLSTM(object):
         self._add_accuracy_op()
         self._add_train_op()
         self.sess, self.saver = None, None
-        print('number of parameters: {}'.format(np.sum([np.prod(v.get_shape().as_list())
-                                                        for v in tf.trainable_variables()])))
+        print('params number: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
         self.initialize_session()
 
     def initialize_session(self):
@@ -121,9 +120,9 @@ class DenseConnectBiLSTM(object):
             dense_bi_lstm = []
             for idx in range(self.cfg.num_layers):
                 if idx < self.cfg.num_layers - 1:
-                    dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units, scope='layer_{}'.format(idx)))
+                    dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units, scope='bi_lstm_layer_{}'.format(idx)))
                 else:
-                    dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units_last, scope='layer_{}'.format(idx)))
+                    dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units_last, scope='bi_lstm_layer_{}'.format(idx)))
             # process data
             cur_inputs = self.word_emb
             for idx in range(self.cfg.num_layers):
@@ -141,19 +140,21 @@ class DenseConnectBiLSTM(object):
             avg_outputs = dropout(avg_outputs, keep_prob=self.cfg.keep_prob, is_train=self.is_train)
             print('average pooling outputs shape: {}'.format(avg_outputs.get_shape().as_list()))
 
-        with tf.variable_scope('output_project'):
+        with tf.variable_scope('project', regularizer=tf.contrib.layers.l2_regularizer(self.cfg.l2_reg)):
             self.logits = dense(avg_outputs, self.cfg.label_size, use_bias=True, scope='dense')
             print('logits shape: {}'.format(self.logits.get_shape().as_list()))
 
     def _add_loss_op(self):
         loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels)
-        if self.cfg.l2_reg is not None and self.cfg.l2_reg > 0.0:
-            # l2 constraints over softmax parameters (i.e., output_project parameters) ?
-            train_vars = tf.trainable_variables(scope='output_project')
+        '''if self.cfg.l2_reg is not None and self.cfg.l2_reg > 0.0:
+            # l2 constraints over softmax parameters (i.e., project parameters) ?
+            train_vars = tf.trainable_variables(scope='project')
             l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in train_vars if 'bias' not in v.name])
             self.loss = tf.reduce_mean(loss + self.cfg.l2_reg * l2_loss)
         else:
-            self.loss = tf.reduce_mean(loss)
+            self.loss = tf.reduce_mean(loss)'''
+        l2_loss = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        self.loss = tf.reduce_mean(loss) + 0.5 * l2_loss
 
     def _add_accuracy_op(self):
         self.predicts = tf.argmax(self.logits, axis=-1)
@@ -172,10 +173,10 @@ class DenseConnectBiLSTM(object):
 
     def train(self, trainset, devset, testset, batch_size=64, epochs=50, shuffle=True):
         self.logger.info('Start training...')
-        init_lr = self.cfg.lr
-        best_score = 0.0
-        best_score_epoch = 1
-        no_imprv_epoch = 0
+        init_lr = self.cfg.lr  # initial learning rate, used for decay learning rate
+        best_score = 0.0  # record the best score
+        best_score_epoch = 1  # record the epoch of the best score obtained
+        no_imprv_epoch = 0  # no improvement patience counter
         for epoch in range(self.start_epoch, epochs + 1):
             self.logger.info('Epoch %2d/%2d:' % (epoch, epochs))
             progbar = Progbar(target=(len(trainset) + batch_size - 1) // batch_size)  # number of batches
@@ -186,18 +187,19 @@ class DenseConnectBiLSTM(object):
                 feed_dict = self._get_feed_dict(words, labels, lr=self.cfg.lr, is_train=True)
                 _, train_loss = self.sess.run([self.train_op, self.loss], feed_dict=feed_dict)
                 progbar.update(i + 1, [("train loss", train_loss)])
-            dev_score = self.evaluate(devset, batch_size)
+            if devset is not None:
+                self.evaluate(devset, batch_size)
+            cur_score = self.evaluate(testset, batch_size, is_devset=False)
             # learning rate decay
             if self.cfg.decay_lr:
                 self.cfg.lr = init_lr / (1 + self.cfg.lr_decay * epoch)
             # performs model saving and evaluating on test dataset
-            if dev_score > best_score:
+            if cur_score > best_score:
                 no_imprv_epoch = 0
                 self.save_session(epoch)
-                best_score = dev_score
+                best_score = cur_score
                 best_score_epoch = epoch
-                self.logger.info(' -- new BEST score on DEVELOPMENT dataset: {:05.3f}'.format(best_score))
-                self.evaluate(testset, batch_size, is_devset=False)
+                self.logger.info(' -- new BEST score on TEST dataset: {:05.3f}'.format(best_score))
             else:
                 no_imprv_epoch += 1
                 if no_imprv_epoch >= self.cfg.no_imprv_patience:

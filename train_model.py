@@ -1,12 +1,12 @@
 from utils import load_json
 from models import Config, DenseConnectBiLSTM
+import argparse
 import os
-import sys
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress tensorflow warnings
 
 
-def main(task, resume):
+def training(task, resume, has_dev):
     data_folder = os.path.join('.', 'dataset', 'data')
     # set tasks
     source_dir = os.path.join(data_folder, task)
@@ -21,16 +21,20 @@ def main(task, resume):
     # training
     batch_size = 200
     epochs = 30
-    model.train(trainset, devset, testset, batch_size=batch_size, epochs=epochs)
+    if has_dev:
+        model.train(trainset, devset, testset, batch_size=batch_size, epochs=epochs, shuffle=True)
+    else:
+        trainset = trainset + devset
+        model.train(trainset, None, testset, batch_size=batch_size, epochs=epochs, shuffle=True)
 
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        train_task = sys.argv[1]
-    else:
-        train_task = 'subj'  # default
-    if len(sys.argv) > 2:
-        resume_training = sys.argv[2]
-    else:
-        resume_training = True  # default
-    main(train_task, resume_training)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--task', type=str, required=True,
+                        help='indicates training task (cr | mpqa | mr | sst1 | sst2 | subj | trec).')
+    parser.add_argument('--resume_training', type=str, required=True, help='restore previous trained model.')
+    parser.add_argument('--has_devset', type=str, required=True, help='set if the task contains development dataset.')
+    args, unparsed = parser.parse_known_args()
+    resume_training = True if args.resume_training == 'True' else False
+    has_devset = True if args.has_devset == 'True' else False
+    training(args.task, resume_training, has_devset)

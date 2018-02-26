@@ -29,7 +29,7 @@ class Config(object):
     use_char_emb = True
     char_dim = 50
     char_rep_dim = 50
-    # CNN filter size and height for char representation
+    # Convolutional neural networks filter size and height for char representation
     filter_sizes = [25, 25]  # sum of filter sizes should equal to char_out_size
     heights = [5, 5]
 
@@ -43,7 +43,7 @@ class Config(object):
     num_units_last = 100
 
     # hyperparameters
-    l2_reg = 0.01
+    l2_reg = 0.001
     grad_clip = 5.0
     decay_lr = True
     lr = 0.01
