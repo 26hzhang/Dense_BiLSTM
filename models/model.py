@@ -9,16 +9,19 @@ np.random.seed(12345)
 
 class DenseConnectBiLSTM(object):
     def __init__(self, config, resume_training=True, model_name='dense_bi_lstm'):
+        # set configurations
         self.cfg, self.model_name, self.resume_training, self.start_epoch = config, model_name, resume_training, 1
         self.logger = get_logger(os.path.join(self.cfg.ckpt_path, 'log.txt'))
+        # build model
         self._add_placeholder()
         self._add_embedding_lookup()
         self._build_model()
         self._add_loss_op()
         self._add_accuracy_op()
         self._add_train_op()
-        self.sess, self.saver = None, None
         print('params number: {}'.format(np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()])))
+        # initialize model
+        self.sess, self.saver = None, None
         self.initialize_session()
 
     def initialize_session(self):
@@ -90,11 +93,11 @@ class DenseConnectBiLSTM(object):
     def _add_embedding_lookup(self):
         with tf.variable_scope('word_embeddings'):
             if self.cfg.use_word_emb:
-                _word_emb = tf.Variable(self.cfg.word_emb, name='_word_emb', dtype=tf.float32,
-                                        trainable=self.cfg.finetune_emb)
+                _word_emb = tf.Variable(self.cfg.word_emb, name='_word_emb', trainable=self.cfg.finetune_emb,
+                                        dtype=tf.float32)
             else:
-                _word_emb = tf.get_variable(name='_word_emb', dtype=tf.float32, trainable=True,
-                                            shape=[self.cfg.vocab_size, self.cfg.word_dim])
+                _word_emb = tf.get_variable(name='_word_emb', shape=[self.cfg.vocab_size, self.cfg.word_dim],
+                                            trainable=True, dtype=tf.float32)
             word_emb = tf.nn.embedding_lookup(_word_emb, self.word_ids, name='word_emb')
 
         if self.cfg.use_char_emb:  # use cnn to generate chars representation
@@ -123,7 +126,7 @@ class DenseConnectBiLSTM(object):
                     dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units, scope='bi_lstm_layer_{}'.format(idx)))
                 else:
                     dense_bi_lstm.append(BiRNN(num_units=self.cfg.num_units_last, scope='bi_lstm_layer_{}'.format(idx)))
-            # process data
+            # processing data
             cur_inputs = self.word_emb
             for idx in range(self.cfg.num_layers):
                 cur_rnn_outputs = dense_bi_lstm[idx](cur_inputs, seq_len=self.seq_len)
@@ -136,12 +139,12 @@ class DenseConnectBiLSTM(object):
 
         with tf.variable_scope('average_pooling'):
             # according to the paper (https://arxiv.org/pdf/1802.00889.pdf) description in P4, simply compute average ?
-            avg_outputs = tf.reduce_mean(dense_bi_lstm_outputs, axis=1)
-            avg_outputs = dropout(avg_outputs, keep_prob=self.cfg.keep_prob, is_train=self.is_train)
-            print('average pooling outputs shape: {}'.format(avg_outputs.get_shape().as_list()))
+            avg_pool_outputs = tf.reduce_mean(dense_bi_lstm_outputs, axis=1)
+            avg_pool_outputs = dropout(avg_pool_outputs, keep_prob=self.cfg.keep_prob, is_train=self.is_train)
+            print('average pooling outputs shape: {}'.format(avg_pool_outputs.get_shape().as_list()))
 
         with tf.variable_scope('project', regularizer=tf.contrib.layers.l2_regularizer(self.cfg.l2_reg)):
-            self.logits = dense(avg_outputs, self.cfg.label_size, use_bias=True, scope='dense')
+            self.logits = dense(avg_pool_outputs, self.cfg.label_size, use_bias=True, scope='dense')
             print('logits shape: {}'.format(self.logits.get_shape().as_list()))
 
     def _add_loss_op(self):

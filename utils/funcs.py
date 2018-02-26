@@ -59,7 +59,7 @@ def pad_sequences(sequences, max_length, pad_tok, max_length_2=None, nlevels=1):
         max_length: maximal length for a sentence allowed
         max_length_2: maximal length for a word allow, only for nLevels=2
         pad_tok: the char to pad with
-        nlevels: "depth" of padding, 2 for the case where we have characters ids
+        nlevels: depth of padding, 2 for the case where we have characters ids
     Returns:
         a list of list where each sublist has same length
     """

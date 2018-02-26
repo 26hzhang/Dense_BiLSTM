@@ -119,13 +119,13 @@ def multi_conv1d(in_, filter_sizes, heights, padding, is_train=None, keep_prob=N
 
 def linear(args, output_size, bias, bias_start=0.0, scope=None, squeeze=False, keep_prob=None, is_train=None):
     if args is None or (nest.is_sequence(args) and not args):
-        raise ValueError("`args` must be specified")
+        raise ValueError("args must be specified")
     if not nest.is_sequence(args):
         args = [args]
     flat_args = [flatten(arg, 1) for arg in args]
     if keep_prob is not None and is_train is not None:
         flat_args = [tf.cond(is_train, lambda: tf.nn.dropout(arg, keep_prob), lambda: arg) for arg in flat_args]
-    with tf.variable_scope(scope or 'Linear'):
+    with tf.variable_scope(scope or 'linear'):
         flat_out = _linear(flat_args, output_size, bias, bias_initializer=tf.constant_initializer(bias_start))
     out = reconstruct(flat_out, args[0], 1)
     if squeeze:
