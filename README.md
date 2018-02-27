@@ -74,7 +74,7 @@ Testing model over TEST dataset: accuracy - 94.000
 
 ## Results
 Here only test the model on several datasets with some epochs to validate if the model works properly.  
-> experiments on MacBook Pro (13-inch, 2017, touch bar) with 3.1GHz Intel Core i5 CPU and 16GB 2133MHz LPDDR3 RAM
+> experiments on MacBook Pro (13-inch, 2017) with 3.1GHz Intel Core i5 CPU and 16GB 2133MHz LPDDR3 RAM
 
 **Dataset** | Train Epochs| Batch Size | Dev | Test
 :---: | :---: | :---: | :---: | :---:
