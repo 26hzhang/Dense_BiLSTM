@@ -3,4 +3,3 @@ dataset/embedding
 dataset/data
 models/__pycache__
 utils/__pycache__
-ckpt/

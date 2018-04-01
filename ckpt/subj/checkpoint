@@ -1,0 +1,5 @@
+model_checkpoint_path: "dense_bi_lstm-6"
+all_model_checkpoint_paths: "dense_bi_lstm-1"
+all_model_checkpoint_paths: "dense_bi_lstm-2"
+all_model_checkpoint_paths: "dense_bi_lstm-4"
+all_model_checkpoint_paths: "dense_bi_lstm-6"

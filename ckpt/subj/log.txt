@@ -1,0 +1,22 @@
+2018-02-26 15:12:11,863:INFO: Start training...
+2018-02-26 15:12:11,864:INFO: Epoch  1/30:
+2018-02-26 15:13:38,252:INFO: Start training...
+2018-02-26 15:13:38,253:INFO: Epoch  1/30:
+2018-02-26 15:23:27,703:INFO: Testing model over TEST dataset: accuracy - 91.100
+2018-02-26 15:23:39,811:INFO:  -- new BEST score on TEST dataset: 91.100
+2018-02-26 15:23:39,812:INFO: Epoch  2/30:
+2018-02-26 15:33:06,565:INFO: Testing model over TEST dataset: accuracy - 91.800
+2018-02-26 15:33:18,263:INFO:  -- new BEST score on TEST dataset: 91.800
+2018-02-26 15:33:18,263:INFO: Epoch  3/30:
+2018-02-26 15:42:41,288:INFO: Testing model over TEST dataset: accuracy - 91.500
+2018-02-26 15:42:41,289:INFO: Epoch  4/30:
+2018-02-26 15:51:40,643:INFO: Testing model over TEST dataset: accuracy - 94.200
+2018-02-26 15:51:51,701:INFO:  -- new BEST score on TEST dataset: 94.200
+2018-02-26 15:51:51,701:INFO: Epoch  5/30:
+2018-02-26 16:00:36,729:INFO: Testing model over TEST dataset: accuracy - 94.100
+2018-02-26 16:00:36,730:INFO: Epoch  6/30:
+2018-02-26 16:09:21,693:INFO: Testing model over TEST dataset: accuracy - 94.500
+2018-02-26 16:09:33,674:INFO:  -- new BEST score on TEST dataset: 94.500
+2018-02-26 16:09:33,674:INFO: Epoch  7/30:
+2018-02-26 16:18:46,559:INFO: Testing model over TEST dataset: accuracy - 94.000
+2018-02-26 16:18:46,560:INFO: Epoch  8/30:
