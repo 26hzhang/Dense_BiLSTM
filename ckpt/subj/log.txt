@@ -1,5 +1,3 @@
-2018-02-26 15:12:11,863:INFO: Start training...
-2018-02-26 15:12:11,864:INFO: Epoch  1/30:
 2018-02-26 15:13:38,252:INFO: Start training...
 2018-02-26 15:13:38,253:INFO: Epoch  1/30:
 2018-02-26 15:23:27,703:INFO: Testing model over TEST dataset: accuracy - 91.100
@@ -19,4 +17,3 @@
 2018-02-26 16:09:33,674:INFO:  -- new BEST score on TEST dataset: 94.500
 2018-02-26 16:09:33,674:INFO: Epoch  7/30:
 2018-02-26 16:18:46,559:INFO: Testing model over TEST dataset: accuracy - 94.000
-2018-02-26 16:18:46,560:INFO: Epoch  8/30:
